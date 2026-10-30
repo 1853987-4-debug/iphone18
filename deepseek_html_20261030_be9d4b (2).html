@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone Simulator</title>
+<style>
+/* ===================== Base Reset ===================== */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button { font-family: inherit; border: none; background: none; color: inherit; cursor: pointer; }
+input { font-family: inherit; outline: none; border: none; }
+
+:root {
+  --sf: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --sf-cn: var(--sf), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 30% 20%, #2b2b3a 0%, #0d0d12 60%);
+  font-family: var(--sf-cn);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ===================== Phone Case ===================== */
+.phone {
+  width: 393px;
+  height: 852px;
+  background: #08080a;
+  border-radius: 56px;
+  padding: 11px;
+  position: relative;
+  box-shadow:
+    0 0 0 2px #33333a,
+    0 0 0 4px #0a0a0c,
+    0 40px 90px rgba(0,0,0,.75),
+    inset 0 0 0 1px #4a4a52;
+}
+
+/* Side Buttons */
+.side-btn { position: absolute; background: #2c2c32; border-radius: 3px; }
+.side-btn.vol-up   { left: -3px; top: 178px; width: 4px; height: 58px; border-radius: 3px 0 0 3px; }
+.side-btn.vol-down { left: -3px; top: 252px; width: 4px; height: 58px; border-radius: 3px 0 0 3px; }
+.side-btn.power    { right: -3px; top: 210px; width: 4px; height: 90px; border-radius: 0 3px 3px 0; cursor: pointer; }
+.side-btn.power:active { background: #55555c; }
+
+.screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 46px;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+  isolation: isolate;
+}
+
+/* ===================== Wallpaper ===================== */
+.wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(160deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%);
+  transition: background .6s ease;
+}
+
+/* ===================== Status Bar ===================== */
+.status-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  z-index: 50;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  pointer-events: none;
+}
+.status-icons { display: flex; align-items: center; gap: 6px; }
+.status-icons svg { display: block; }
+.battery {
+  width: 26px; height: 13px;
+  border: 1.5px solid rgba(255,255,255,.45);
+  border-radius: 4px;
+  padding: 1.5px;
+  position: relative;
+}
+.battery::after {
+  content: '';
+  position: absolute;
+  right: -4px; top: 3.5px;
+  width: 2px; height: 4px;
+  background: rgba(255,255,255,.45);
+  border-radius: 0 2px 2px 0;
+}
+.battery-level {
+  height: 100%;
+  width: 82%;
+  background: #fff;
+  border-radius: 1.5px;
+}
+#batteryPct { display: none; font-size: 13px; }
+body.show-pct #batteryPct { display: inline; }
+
+/* ===================== Dynamic Island ===================== */
+.dynamic-island {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  width: 122px; height: 34px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: width .42s cubic-bezier(.2,.8,.2,1), height .42s, border-radius .42s;
+}
+.dynamic-island span { opacity: 0; transition: opacity .18s; }
+.dynamic-island.show { width: 250px; height: 44px; border-radius: 22px; }
+.dynamic-island.show span { opacity: 1; }
+
+/* ===================== Lock Screen ===================== */
+.lock-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 92px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .45s;
+}
+.lock-screen.unlocked {
+  transform: translateY(-105%);
+  opacity: 0;
+  pointer-events: none;
+}
+.lock-date { font-size: 20px; font-weight: 500; opacity: .92; letter-spacing: .5px; }
+.lock-time {
+  font-size: 88px; font-weight: 500; line-height: 1.02;
+  letter-spacing: -3px; margin-top: -2px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 4px 30px rgba(0,0,0,.25);
+}
+.lock-widgets { display: flex; gap: 12px; margin-top: 26px; }
+.lock-widget {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px; border-radius: 20px;
+  background: rgba(255,255,255,.14);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  font-size: 13px;
+}
+.lock-widget b { font-size: 16px; display: block; }
+.lock-widget span { opacity: .7; font-size: 11px; }
+.lock-widget .emo { font-size: 22px; }
+.unlock-hint {
+  margin-top: auto; margin-bottom: 44px; text-align: center;
+  font-size: 13px; opacity: .8; animation: float 2.2s ease-in-out infinite;
+}
+.unlock-hint .arrow { font-size: 20px; line-height: 1; margin-bottom: 4px; }
+@keyframes float { 0%, 100% { transform: translateY(0); opacity: .65; } 50% { transform: translateY(-7px); opacity: 1; } }
+
+/* ===================== Home Screen ===================== */
+.home-screen {
+  position: absolute;
+  inset: 0; z-index: 10;
+  display: flex; flex-direction: column;
+  padding-top: 62px;
+  transition: transform .35s cubic-bezier(.32,.72,0,1), opacity .3s;
+}
+.home-screen.hidden { transform: scale(.94); opacity: 0; pointer-events: none; }
+
+.app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px 10px; padding: 0 22px; }
+.app-item { display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; }
+.app-icon {
+  width: 60px; height: 60px; border-radius: 15px;
+  display: grid; place-items: center; font-size: 30px;
+  box-shadow: 0 5px 14px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.25);
+  transition: transform .16s ease; will-change: transform;
+}
+.app-item:active .app-icon { transform: scale(.88); }
+.app-label { font-size: 11.5px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); letter-spacing: .2px; }
+
+.page-dots { display: flex; gap: 7px; justify-content: center; margin-top: auto; margin-bottom: 16px; }
+.page-dots span { width: 6.5px; height: 6.5px; border-radius: 50%; background: rgba(255,255,255,.35); }
+.page-dots span.active { background: #fff; }
+
+.dock {
+  margin: 0 12px 26px; height: 90px; border-radius: 34px;
+  background: rgba(255,255,255,.16); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  display: flex; align-items: center; justify-content: space-around; padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* ===================== App Views ===================== */
+.app-view {
+  position: absolute; inset: 0; z-index: 20;
+  padding: 64px 20px 40px; color: #fff;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .4s cubic-bezier(.32,.72,0,1);
+  overflow-y: auto; overflow-x: hidden;
+}
+.app-view.active { transform: translateX(0); }
+.app-view::-webkit-scrollbar { display: none; }
+.app-header { font-size: 32px; font-weight: 700; letter-spacing: -.6px; margin-bottom: 18px; }
+
+/* ===================== Calculator ===================== */
+.calc-app { background: #000; padding: 64px 16px 34px; }
+.calc-display { flex: 1; display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 12px 22px; overflow: hidden; }
+#calcResult { font-size: 72px; font-weight: 300; line-height: 1; letter-spacing: -2px; font-variant-numeric: tabular-nums; white-space: nowrap; transition: font-size .15s; }
+.calc-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ck { aspect-ratio: 1; border-radius: 50%; font-size: 30px; background: #333; color: #fff; display: grid; place-items: center; transition: filter .12s, transform .08s; }
+.ck:active { filter: brightness(1.6); transform: scale(.95); }
+.ck.fn { background: #a5a5a5; color: #000; font-weight: 500; }
+.ck.op { background: #ff9f0a; font-size: 34px; }
+.ck.zero { grid-column: span 2; aspect-ratio: auto; border-radius: 40px; justify-content: flex-start; padding-left: 31px; }
+
+/* ===================== Clock ===================== */
+.clock-app { background: #000; align-items: center; }
+.clock-app .app-header { align-self: flex-start; }
+.clock-now { font-size: 62px; font-weight: 200; font-variant-numeric: tabular-nums; letter-spacing: -2px; margin: 10px 0 46px; color: #ff9f0a; }
+.sw-time { font-size: 68px; font-weight: 200; font-variant-numeric: tabular-nums; letter-spacing: -2px; margin-bottom: 34px; }
+.sw-buttons { display: flex; gap: 22px; }
+.sw-btn { width: 92px; height: 92px; border-radius: 50%; font-size: 17px; font-weight: 500; background: #2c2c2e; transition: filter .12s, transform .08s; }
+.sw-btn:active { filter: brightness(1.4); transform: scale(.95); }
+.sw-btn.green { background: #0d3b22; color: #30d158; }
+.sw-btn.red { background: #3b0d0d; color: #ff453a; }
+
+/* ===================== Weather ===================== */
+.weather-app { background: linear-gradient(170deg, #2f6fb5 0%, #1e4d8c 45%, #102a4c 100%); padding-top: 70px; }
+.w-header { text-align: center; margin-bottom: 26px; }
+.w-city { font-size: 32px; font-weight: 500; letter-spacing: .5px; }
+.w-temp { font-size: 92px; font-weight: 200; line-height: 1; letter-spacing: -4px; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.w-desc { font-size: 17px; opacity: .85; }
+.w-hl { font-size: 15px; opacity: .7; margin-top: 4px; }
+.w-card { background: rgba(255,255,255,.15); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-radius: 18px; padding: 14px 16px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,.12); }
+.w-card-title { font-size: 11.5px; opacity: .7; letter-spacing: .8px; text-transform: uppercase; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 10px; }
+.w-hourly { display: flex; justify-content: space-between; }
+.w-hour { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 14px; }
+.w-hour .h-emo { font-size: 20px; }
+.w-hour .h-t { font-weight: 600; font-variant-numeric: tabular-nums; }
+.w-day { display: flex; align-items: center; gap: 12px; padding: 7px 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.w-day .d-name { width: 46px; font-weight: 500; }
+.w-day .d-emo { width: 24px; text-align: center; }
+.w-day .d-bar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.2); overflow: hidden; }
+.w-day .d-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6fd6ff, #ffd166); }
+.w-day .d-lo { width: 32px; text-align: right; opacity: .6; }
+.w-day .d-hi { width: 32px; text-align: right; }
+
+/* ===================== Notes ===================== */
+.notes-app { background: #141416; }
+.note-input { display: flex; gap: 10px; margin-bottom: 18px; }
+.note-input input { flex: 1; height: 44px; border-radius: 12px; padding: 0 14px; font-size: 15px; background: #2c2c2e; color: #fff; user-select: text; }
+.note-input input::placeholder { color: #6a6a6e; }
+.note-input button { height: 44px; padding: 0 20px; border-radius: 12px; background: #ffd60a; color: #000; font-size: 15px; font-weight: 600; }
+.note-input button:active { filter: brightness(.9); }
+.notes-list { display: flex; flex-direction: column; gap: 10px; }
+.note-item { background: #2c2c2e; border-radius: 14px; padding: 14px 16px; font-size: 15px; line-height: 1.45; display: flex; gap: 12px; align-items: flex-start; animation: noteIn .28s ease; }
+@keyframes noteIn { from { opacity: 0; transform: translateY(-8px); } }
+.note-item .n-text { flex: 1; word-break: break-word; }
+.note-item .n-del { color: #ff453a; font-size: 17px; line-height: 1; padding: 2px 4px; }
+.note-empty { color: #6a6a6e; font-size: 14px; text-align: center; padding: 30px 0; }
+
+/* ===================== Music ===================== */
+.music-app { background: linear-gradient(170deg, #3a1c3d 0%, #1b1024 55%, #0a0a0f 100%); align-items: center; justify-content: center; }
+.music-art { width: 230px; height: 230px; border-radius: 22px; background: linear-gradient(135deg, #ff5f6d, #ffc371, #7b2ff7); display: grid; place-items: center; font-size: 82px; box-shadow: 0 24px 60px rgba(0,0,0,.55); margin-bottom: 30px; transition: transform .4s, border-radius .4s; }
+.music-art.playing { transform: scale(1.03); border-radius: 26px; }
+.music-title { font-size: 22px; font-weight: 600; }
+.music-artist { font-size: 15px; opacity: .6; margin-top: 5px; }
+.music-progress { width: 100%; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); margin-top: 32px; overflow: hidden; }
+#musicBar { height: 100%; width: 0%; border-radius: 3px; background: #fff; transition: width .15s linear; }
+.music-times { width: 100%; display: flex; justify-content: space-between; font-size: 11.5px; opacity: .55; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.music-controls { display: flex; align-items: center; gap: 34px; margin-top: 26px; }
+.music-controls button { font-size: 28px; opacity: .9; transition: transform .1s; }
+.music-controls button:active { transform: scale(.9); }
+.music-controls #musicPlay { width: 66px; height: 66px; border-radius: 50%; background: rgba(255,255,255,.14); display: grid; place-items: center; font-size: 26px; }
+
+/* ===================== Photos ===================== */
+.photos-app { background: #000; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.photo-grid div { aspect-ratio: 1; border-radius: 6px; transition: transform .18s; cursor: pointer; }
+.photo-grid div:active { transform: scale(.94); }
+
+/* ===================== Settings ===================== */
+.settings-app { background: #141416; }
+.settings-group { background: #2c2c2e; border-radius: 14px; overflow: hidden; margin-bottom: 22px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,.07); cursor: pointer; }
+.setting-row:last-child { border-bottom: none; }
+.setting-row:active { background: rgba(255,255,255,.05); }
+.setting-row .chev { opacity: .35; font-size: 19px; }
+.setting-row .muted { opacity: .45; font-size: 14px; }
+.switch { width: 51px; height: 31px; border-radius: 16px; background: #39393d; position: relative; transition: background .25s; flex-shrink: 0; }
+.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.35); transition: transform .25s cubic-bezier(.3,1.3,.5,1); }
+.switch.on { background: #30d158; }
+.switch.on::after { transform: translateX(20px); }
+
+/* ===================== Phone App ===================== */
+.phone-app { background: #141416; }
+.phone-card { background: #2c2c2e; border-radius: 16px; padding: 24px; text-align: center; margin-top: 20px; }
+.phone-card .p-label { font-size: 14px; color: #8e8e93; margin-bottom: 8px; }
+.phone-card .p-num { font-size: 32px; font-weight: 600; letter-spacing: 2px; color: #fff; font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+.phone-card .p-hint { font-size: 12px; color: #636366; line-height: 1.5; }
+.phone-card .p-btn { margin-top: 20px; padding: 10px 20px; border-radius: 10px; background: #0a84ff; color: #fff; font-size: 15px; font-weight: 500; }
+
+/* ===================== WeChat (Chat) App ===================== */
+.wechat-app { background: #141416; padding-bottom: 0; }
+/* Registration */
+.reg-container { display: flex; flex-direction: column; gap: 16px; margin-top: 40px; align-items: center; }
+.reg-container input { width: 100%; height: 50px; border-radius: 12px; background: #2c2c2e; color: #fff; padding: 0 16px; font-size: 18px; text-align: center; user-select: text; font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+.reg-container button { width: 100%; height: 50px; border-radius: 12px; background: #07c160; color: #fff; font-size: 16px; font-weight: 600; }
+.reg-container button:active { filter: brightness(.9); }
+.reg-hint { font-size: 13px; color: #8e8e93; text-align: center; margin-top: 20px; line-height: 1.5; }
+
+/* Chat List */
+.chat-list-header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 16px; height: 20px; }
+.chat-list-header button { color: #07c160; font-size: 15px; }
+.add-friend-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+.add-friend-bar input { flex: 1; height: 40px; border-radius: 10px; background: #2c2c2e; color: #fff; padding: 0 12px; font-size: 14px; user-select: text; font-variant-numeric: tabular-nums; }
+.add-friend-bar button { height: 40px; padding: 0 16px; border-radius: 10px; background: #07c160; color: #fff; font-size: 14px; font-weight: 500; }
+.chat-items { display: flex; flex-direction: column; gap: 12px; }
+.chat-item { display: flex; align-items: center; gap: 14px; padding: 14px; background: #2c2c2e; border-radius: 14px; cursor: pointer; }
+.chat-item:active { background: #3a3a3c; }
+.chat-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #07c160, #059c4c); display: grid; place-items: center; font-size: 20px; color: #fff; }
+.chat-info { flex: 1; }
+.chat-name { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.chat-preview { font-size: 13px; color: #8e8e93; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+
+/* Chat Room */
+.chat-room { position: absolute; inset: 0; background: #000; z-index: 10; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .3s ease; }
+.chat-room.active { transform: translateX(0); }
+.chat-room-header { height: 60px; display: flex; align-items: center; padding: 0 16px; background: #1c1c1e; border-bottom: 1px solid #2c2c2e; gap: 12px; }
+.chat-room-header button { color: #07c160; font-size: 22px; line-height: 1; padding: 4px; }
+.chat-room-header .cr-name { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chat-room-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0f0f11; }
+.msg-bubble { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-break: break-word; }
+.msg-bubble.me { background: #07c160; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.msg-bubble.friend { background: #2c2c2e; color: #fff; align-self: flex-start; border-bottom-left-radius: 4px; }
+
+/* File & Image Attachments */
+.attach-btn { font-size: 22px; color: #07c160; padding: 0 6px; display: grid; place-items: center; }
+.attach-btn:active { opacity: 0.6; }
+.msg-bubble.image-bubble { padding: 4px; background: transparent; border: none; }
+.msg-bubble.image-bubble img { max-width: 180px; max-height: 180px; border-radius: 12px; display: block; object-fit: cover; }
+.msg-bubble.file-bubble { display: flex; align-items: center; gap: 12px; background: #fff; color: #000; padding: 12px 16px; border-radius: 12px; }
+.msg-bubble.file-bubble.friend { background: #2c2c2e; color: #fff; }
+.file-icon { font-size: 28px; }
+.file-info { display: flex; flex-direction: column; }
+.file-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.file-size { font-size: 11px; color: #888; margin-top: 2px; }
+
+.chat-room-input { padding: 12px 16px; background: #1c1c1e; display: flex; gap: 8px; border-top: 1px solid #2c2c2e; padding-bottom: 30px; align-items: center; }
+.chat-room-input input[type="text"] { flex: 1; height: 40px; border-radius: 20px; background: #2c2c2e; color: #fff; padding: 0 16px; font-size: 15px; user-select: text; }
+.chat-room-input button#crSendBtn { width: 40px; height: 40px; border-radius: 50%; background: #07c160; color: #fff; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+
+/* ===================== App Store ===================== */
+.appstore-app { background: #000; }
+.store-section-title { font-size: 20px; font-weight: 700; margin-bottom: 14px; margin-top: 10px; }
+.store-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
+.store-item { display: flex; align-items: center; gap: 14px; padding: 14px; background: #1c1c1e; border-radius: 14px; }
+.store-icon { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; font-size: 28px; }
+.store-info { flex: 1; }
+.store-name { font-size: 16px; font-weight: 600; }
+.store-desc { font-size: 12px; color: #8e8e93; margin-top: 2px; }
+.store-btn { padding: 6px 16px; border-radius: 16px; background: #0a84ff; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.store-btn.downloaded { background: #2c2c2e; color: #fff; }
+
+/* ===================== YouTube ===================== */
+.youtube-app { background: #0f0f11; padding: 0; }
+.yt-header { padding: 14px 16px; font-size: 20px; font-weight: 700; color: #ff0000; letter-spacing: -1px; display: flex; align-items: center; gap: 8px; }
+.yt-video-box { width: 100%; aspect-ratio: 16/9; background: #1c1c1e; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.yt-thumb { width: 100%; height: 100%; background: linear-gradient(45deg, #ff9a9e, #fecfef); display: flex; align-items: center; justify-content: center; }
+.yt-play-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; display: grid; place-items: center; font-size: 24px; cursor: pointer; }
+.yt-progress { position: absolute; bottom: 0; left: 0; height: 4px; background: #ff0000; width: 0%; transition: width .2s linear; }
+.yt-info { padding: 16px; }
+.yt-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.yt-author { font-size: 13px; color: #8e8e93; }
+
+/* ===================== Roblox ===================== */
+.roblox-app { background: #232527; align-items: center; justify-content: center; }
+.game-container { text-align: center; }
+.game-title { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.game-score { font-size: 18px; color: #b0b0b0; margin-bottom: 30px; }
+.game-block { width: 120px; height: 120px; background: linear-gradient(135deg, #e62b2a, #ff6b6b); border-radius: 20px; display: grid; place-items: center; font-size: 40px; color: #fff; margin: 0 auto 30px; cursor: pointer; box-shadow: 0 10px 0 #9e1b1a, 0 15px 20px rgba(0,0,0,0.5); transition: transform .1s; }
+.game-block:active { transform: translateY(10px); box-shadow: 0 0 0 #9e1b1a, 0 5px 10px rgba(0,0,0,0.5); }
+.game-sub { font-size: 14px; color: #8e8e93; }
+
+/* ===================== Facebook / IG Placeholder ===================== */
+.social-app { background: #f0f2f5; color: #000; padding-top: 54px; }
+.social-app .app-header { color: #1877F2; margin-bottom: 10px; }
+.post-card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+.post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ccc; display: grid; place-items: center; font-size: 20px; }
+.post-name { font-size: 15px; font-weight: 600; color: #000; }
+.post-text { font-size: 15px; color: #1c1e21; margin-bottom: 12px; }
+.post-img { width: 100%; height: 180px; background: #e4e6eb; border-radius: 8px; display: grid; place-items: center; font-size: 40px; color: #888; }
+
+.ig-app { background: #fff; color: #000; padding-top: 54px; }
+.ig-app .app-header { color: #000; margin-bottom: 10px; }
+.ig-post { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
+.ig-header { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.ig-avatar { width: 32px; height: 32px; border-radius: 50%; background: #ccc; display: grid; place-items: center; font-size: 16px; }
+.ig-name { font-size: 14px; font-weight: 600; }
+.ig-img { width: 100%; height: 250px; background: #e4e6eb; border-radius: 0; display: grid; place-items: center; font-size: 60px; color: #888; }
+
+/* ===================== Home Bar ===================== */
+.home-bar { position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.85); z-index: 55; cursor: pointer; transition: opacity .2s, background .2s; }
+.home-bar:hover { background: #fff; }
+.home-bar:active { opacity: .6; }
+
+/* ===================== Responsive ===================== */
+@media (max-height: 920px) { .phone { transform: scale(.88); } }
+@media (max-height: 800px) { .phone { transform: scale(.76); } }
+@media (max-height: 700px) { .phone { transform: scale(.64); } }
+@media (max-width: 460px)  { .phone { transform: scale(.9); } }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="side-btn vol-up"></div>
+  <div class="side-btn vol-down"></div>
+  <div class="side-btn power" id="powerBtn" title="Lock / Wake"></div>
+
+  <div class="screen" id="screen">
+
+    <!-- Wallpaper -->
+    <div class="wallpaper" id="wallpaper"></div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="statusTime">9:41</span>
+      <div class="status-icons">
+        <span id="batteryPct">82%</span>
+        <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor">
+          <rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="6" width="3" height="6" rx="1"/>
+          <rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/>
+        </svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
+          <path d="M8 11.4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+          <path d="M8 5.6c-1.6 0-3.1.6-4.2 1.7l1.35 1.35A4.1 4.1 0 0 1 8 7.5c1.1 0 2.1.4 2.85 1.15L12.2 7.3A5.95 5.95 0 0 0 8 5.6z"/>
+          <path d="M8 1.7c-2.7 0-5.2 1.05-7 2.85l1.35 1.35A8.1 8.1 0 0 1 8 3.6c2.15 0 4.15.85 5.65 2.3L15 4.55A9.95 9.95 0 0 0 8 1.7z"/>
+        </svg>
+        <div class="battery"><div class="battery-level"></div></div>
+      </div>
+    </div>
+
+    <!-- Dynamic Island -->
+    <div class="dynamic-island" id="island"><span id="islandText"></span></div>
+
+    <!-- Lock Screen -->
+    <div class="lock-screen" id="lockScreen">
+      <div class="lock-date" id="lockDate">October 30, Friday</div>
+      <div class="lock-time" id="lockTime">9:41</div>
+
+      <div class="lock-widgets">
+        <div class="lock-widget">
+          <span class="emo">🌤️</span>
+          <div><b>24°</b><span>Beijing · Sunny</span></div>
+        </div>
+        <div class="lock-widget">
+          <span class="emo">🔋</span>
+          <div><b>82%</b><span>Battery Good</span></div>
+        </div>
+      </div>
+
+      <div class="unlock-hint">
+        <div class="arrow">︿</div>
+        <div>Swipe up to unlock</div>
+      </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div class="home-screen" id="homeScreen">
+      <div class="app-grid" id="appGrid"></div>
+      <div class="page-dots"><span class="active"></span><span></span></div>
+      <div class="dock" id="dock"></div>
+    </div>
+
+    <!-- ========== Weather App ========== -->
+    <div class="app-view weather-app" id="app-weather">
+      <div class="w-header">
+        <div class="w-city">Beijing</div>
+        <div class="w-temp">24°</div>
+        <div class="w-desc">Sunny</div>
+        <div class="w-hl">H: 28° · L: 18°</div>
+      </div>
+      <div class="w-card">
+        <div class="w-card-title">Hourly Forecast</div>
+        <div class="w-hourly" id="wHourly"></div>
+      </div>
+      <div class="w-card">
+        <div class="w-card-title">5-Day Forecast</div>
+        <div id="wDaily"></div>
+      </div>
+    </div>
+
+    <!-- ========== Calculator App ========== -->
+    <div class="app-view calc-app" id="app-calculator">
+      <div class="calc-display"><div id="calcResult">0</div></div>
+      <div class="calc-keys" id="calcKeys">
+        <button class="ck fn" data-k="AC">AC</button>
+        <button class="ck fn" data-k="±">±</button>
+        <button class="ck fn" data-k="%">%</button>
+        <button class="ck op" data-k="÷">÷</button>
+        <button class="ck" data-k="7">7</button>
+        <button class="ck" data-k="8">8</button>
+        <button class="ck" data-k="9">9</button>
+        <button class="ck op" data-k="×">×</button>
+        <button class="ck" data-k="4">4</button>
+        <button class="ck" data-k="5">5</button>
+        <button class="ck" data-k="6">6</button>
+        <button class="ck op" data-k="-">−</button>
+        <button class="ck" data-k="1">1</button>
+        <button class="ck" data-k="2">2</button>
+        <button class="ck" data-k="3">3</button>
+        <button class="ck op" data-k="+">+</button>
+        <button class="ck zero" data-k="0">0</button>
+        <button class="ck" data-k=".">.</button>
+        <button class="ck op" data-k="=">=</button>
+      </div>
+    </div>
+
+    <!-- ========== Clock App ========== -->
+    <div class="app-view clock-app" id="app-clock">
+      <div class="app-header">Clock</div>
+      <div class="clock-now" id="clockNow">9:41:00</div>
+      <div class="sw-time" id="swTime">00:00.00</div>
+      <div class="sw-buttons">
+        <button class="sw-btn" id="swReset">Reset</button>
+        <button class="sw-btn green" id="swStart">Start</button>
+      </div>
+    </div>
+
+    <!-- ========== Notes App ========== -->
+    <div class="app-view notes-app" id="app-notes">
+      <div class="app-header">Notes</div>
+      <div class="note-input">
+        <input id="noteInput" placeholder="New note..." maxlength="120">
+        <button id="noteAdd">Add</button>
+      </div>
+      <div class="notes-list" id="notesList"></div>
+    </div>
+
+    <!-- ========== Music App ========== -->
+    <div class="app-view music-app" id="app-music">
+      <div class="music-art" id="musicArt">🎧</div>
+      <div class="music-title">Sunny Day</div>
+      <div class="music-artist">Jay Chou · Ye Hui Mei</div>
+      <div class="music-progress"><div id="musicBar"></div></div>
+      <div class="music-times"><span id="musicCur">0:00</span><span>4:29</span></div>
+      <div class="music-controls">
+        <button id="musicPrev">⏮</button>
+        <button id="musicPlay">▶</button>
+        <button id="musicNext">⏭</button>
+      </div>
+    </div>
+
+    <!-- ========== Photos App ========== -->
+    <div class="app-view photos-app" id="app-photos">
+      <div class="app-header">Photos</div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+
+    <!-- ========== Settings App ========== -->
+    <div class="app-view settings-app" id="app-settings">
+      <div class="app-header">Settings</div>
+      <div class="settings-group">
+        <div class="setting-row" id="rowWallpaper">
+          <span>🖼️ Change Wallpaper</span><span class="chev">›</span>
+        </div>
+        <div class="setting-row" id="rowBattery">
+          <span>🔋 Show Battery Percentage</span><div class="switch" id="swBattery"></div>
+        </div>
+        <div class="setting-row" id="rowLock">
+          <span>🔒 Lock Screen</span><span class="chev">›</span>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="setting-row">
+          <span>About</span><span class="muted">iPhone Simulator v1.0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Phone App ========== -->
+    <div class="app-view phone-app" id="app-phone">
+      <div class="app-header">Phone</div>
+      <div class="phone-card">
+        <div class="p-label">Your Phone Number</div>
+        <div class="p-num" id="myPhoneNumber">1234 5678</div>
+        <div class="p-hint">This number is unique and random.<br>Use this to register in WeChat.</div>
+        <button class="p-btn" id="regenPhoneBtn">Generate New Number</button>
+      </div>
+    </div>
+
+    <!-- ========== WeChat App ========== -->
+    <div class="app-view wechat-app" id="app-wechat">
+      <div class="app-header">WeChat</div>
+      
+      <!-- Registration State -->
+      <div id="regState">
+        <div class="reg-container">
+          <input type="tel" id="regPhoneInput" placeholder="8-digit number" maxlength="8">
+          <button id="regBtn">Next</button>
+        </div>
+        <div class="reg-hint">Enter a unique 8-digit number to log in.<br>No password required.</div>
+      </div>
+
+      <!-- Main Chat List State -->
+      <div id="chatListState" style="display: none; flex-direction: column; height: 100%;">
+        <div class="chat-list-header">
+          <button id="logoutBtn">Log out</button>
+        </div>
+        
+        <div class="add-friend-bar">
+          <input type="tel" id="friendPhoneInput" placeholder="Friend's 8-digit number..." maxlength="8">
+          <button id="addFriendBtn">Add</button>
+        </div>
+
+        <div class="chat-items" id="chatItems"></div>
+      </div>
+
+      <!-- Chat Room -->
+      <div class="chat-room" id="chatRoom">
+        <div class="chat-room-header">
+          <button id="backToChatList">‹</button>
+          <div class="cr-name" id="crName">Friend</div>
+        </div>
+        <div class="chat-room-messages" id="crMessages"></div>
+        <div class="chat-room-input">
+          <button class="attach-btn" id="btnImg" title="Send Image">🖼️</button>
+          <button class="attach-btn" id="btnFile" title="Send File">📎</button>
+          <input type="text" id="crInput" placeholder="Message">
+          <button id="crSendBtn">↑</button>
+        </div>
+        <!-- Hidden File Inputs -->
+        <input type="file" id="fileInputImg" accept="image/*" style="display:none;">
+        <input type="file" id="fileInputDoc" accept="*/*" style="display:none;">
+      </div>
+    </div>
+
+    <!-- ========== App Store ========== -->
+    <div class="app-view appstore-app" id="app-appstore">
+      <div class="app-header">App Store</div>
+      <div class="store-section-title">Must-Have Apps</div>
+      <div class="store-list" id="storeList">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- ========== YouTube ========== -->
+    <div class="app-view youtube-app" id="app-youtube">
+      <div class="yt-header">▶ YouTube</div>
+      <div class="yt-video-box">
+        <div class="yt-thumb" id="ytThumb">
+          <div class="yt-play-btn" id="ytPlayBtn">▶</div>
+        </div>
+        <div class="yt-progress" id="ytProgress"></div>
+      </div>
+      <div class="yt-info">
+        <div class="yt-title">Relaxing Lofi Beats to Study/Work To</div>
+        <div class="yt-author">Lofi Girl · 1.2M views</div>
+      </div>
+      <div style="padding: 0 16px; margin-top: 10px;">
+        <div style="width:100%; height:1px; background:#2c2c2e; margin: 16px 0;"></div>
+        <div class="yt-title" style="font-size: 15px;">Up Next</div>
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <div style="width:120px; height:70px; border-radius:8px; background:#333; flex-shrink:0; display:grid; place-items:center; font-size:24px;">🎵</div>
+          <div>
+            <div style="font-size:14px; font-weight:500;">Chill Vibes Mix</div>
+            <div style="font-size:12px; color:#8e8e93;">Chill Nation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== Roblox ========== -->
+    <div class="app-view roblox-app" id="app-roblox">
+      <div class="game-container">
+        <div class="game-title">Bloxy Clicker</div>
+        <div class="game-score" id="gameScore">Score: 0</div>
+        <div class="game-block" id="gameBlock">🧱</div>
+        <div class="game-sub">Tap the block to score!</div>
+      </div>
+    </div>
+
+    <!-- ========== Facebook ========== -->
+    <div class="app-view social-app" id="app-facebook">
+      <div class="app-header">facebook</div>
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar">👤</div>
+          <div class="post-name">Mark Zuckerberg</div>
+        </div>
+        <div class="post-text">Just downloaded the new iPhone Simulator! It's pretty cool. 🚀</div>
+        <div class="post-img">📸 Photo</div>
+      </div>
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar" style="background:#ff9f0a;">👤</div>
+          <div class="post-name">Apple Fan Club</div>
+        </div>
+        <div class="post-text">Who else loves the Dynamic Island? #iPhone</div>
+      </div>
+    </div>
+
+    <!-- ========== Instagram ========== -->
+    <div class="app-view ig-app" id="app-instagram">
+      <div class="app-header">Instagram</div>
+      <div class="ig-post">
+        <div class="ig-header">
+          <div class="ig-avatar">👤</div>
+          <div class="ig-name">travel_addict</div>
+        </div>
+        <div class="ig-img">🏖️</div>
+        <div style="padding: 10px 0; font-size: 14px;">
+          <span style="color: #ff3040;">❤️</span> 1,234 likes
+        </div>
+        <div style="font-size: 14px;"><b>travel_addict</b> Summer vibes ☀️🌊</div>
+      </div>
+      <div class="ig-post">
+        <div class="ig-header">
+          <div class="ig-avatar">👤</div>
+          <div class="ig-name">foodie_inc</div>
+        </div>
+        <div class="ig-img">🍔</div>
+        <div style="padding: 10px 0; font-size: 14px;">
+          <span style="color: #ff3040;">❤️</span> 892 likes
+        </div>
+        <div style="font-size: 14px;"><b>foodie_inc</b> Best burger in town! 🍔🔥</div>
+      </div>
+    </div>
+
+    <!-- Home Bar -->
+    <div class="home-bar" id="homeBar" title="Return to Home"></div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. App Data & Random Phone Number
+   ============================================================ */
+let myRandomPhone = Math.floor(10000000 + Math.random() * 90000000).toString();
+
+const BASE_APPS = [
+  { id:'appstore',   name:'App Store', icon:'🛍️', bg:'linear-gradient(160deg,#1cc8ee,#0f7c9e)' },
+  { id:'weather',    name:'Weather',   icon:'🌤️', bg:'linear-gradient(160deg,#4facfe,#00b8f2)' },
+  { id:'calculator', name:'Calculator',icon:'🧮', bg:'linear-gradient(160deg,#ffb03a,#ff7a00)' },
+  { id:'clock',      name:'Clock',     icon:'⏰', bg:'linear-gradient(160deg,#3a3a3c,#0a0a0a)' },
+  { id:'notes',      name:'Notes',     icon:'📝', bg:'linear-gradient(160deg,#ffe066,#f5b301)' },
+  { id:'music',      name:'Music',     icon:'🎵', bg:'linear-gradient(160deg,#ff5f6d,#ffc371)' },
+  { id:'photos',     name:'Photos',    icon:'🌈', bg:'linear-gradient(160deg,#f8f9fa,#c9d6e3)' },
+  { id:'settings',   name:'Settings',  icon:'⚙️', bg:'linear-gradient(160deg,#9aa4ad,#5c6b73)' },
+];
+
+const DOCK = [
+  { id:'phone',    name:'Phone',    icon:'📞', bg:'linear-gradient(160deg,#43e97b,#1fc26b)' },
+  { id:'safari',   name:'Safari',   icon:'🧭', bg:'linear-gradient(160deg,#4facfe,#00b8f2)' },
+  { id:'wechat',   name:'WeChat',   icon:'💬', bg:'linear-gradient(160deg,#07c160,#059c4c)' },
+  { id:'music',    name:'Music',    icon:'🎵', bg:'linear-gradient(160deg,#ff5f6d,#ffc371)' },
+];
+
+const STORE_APPS = [
+  { id:'youtube',    name:'YouTube',   icon:'▶️', bg:'#ff0000' },
+  { id:'roblox',     name:'Roblox',    icon:'🧱', bg:'#e62b2a' },
+  { id:'facebook',   name:'Facebook',  icon:'📘', bg:'#1877F2' },
+  { id:'instagram',  name:'Instagram', icon:'📸', bg:'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' },
+];
+
+const WALLPAPERS = [
+  'linear-gradient(160deg,#1a1a2e 0%,#16213e 45%,#0f3460 100%)',
+  'linear-gradient(160deg,#0f2027 0%,#203a43 45%,#2c5364 100%)',
+  'linear-gradient(160deg,#42275a 0%,#734b6d 60%,#b06ab3 100%)',
+  'linear-gradient(160deg,#0b486b 0%,#f56217 100%)',
+  'linear-gradient(160deg,#232526 0%,#414345 100%)',
+];
+
+/* ============================================================
+   2. Utilities
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+
+let islandTimer;
+function toast(msg) {
+  const island = $('island');
+  $('islandText').textContent = msg;
+  island.classList.add('show');
+  clearTimeout(islandTimer);
+  islandTimer = setTimeout(() => island.classList.remove('show'), 1700);
+}
+
+/* ============================================================
+   3. Time
+   ============================================================ */
+function updateTime() {
+  const d = new Date();
+  const h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  
+  $('statusTime').textContent = `${h12}:${pad(m)} ${ampm}`;
+  $('lockTime').textContent   = `${h12}:${pad(m)}`;
+  
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  $('lockDate').textContent = `${months[d.getMonth()]} ${d.getDate()}, ${days[d.getDay()]}`;
+  
+  $('clockNow').textContent = `${pad(h12)}:${pad(m)}:${pad(s)} ${ampm}`;
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+/* ============================================================
+   4. Dynamic Home Screen Rendering
+   ============================================================ */
+let downloadedApps = JSON.parse(localStorage.getItem('downloaded_apps')) || [];
+
+function renderHomeScreen() {
+  const activeApps = [...BASE_APPS];
+  
+  downloadedApps.forEach(appId => {
+    const app = STORE_APPS.find(a => a.id === appId);
+    if (app) activeApps.push(app);
+  });
+
+  $('appGrid').innerHTML = activeApps.map(a => `
+    <div class="app-item" data-app="${a.id}">
+      <div class="app-icon" style="background:${a.bg}">${a.icon}</div>
+      <div class="app-label">${a.name}</div>
+    </div>
+  `).join('');
+}
+
+renderHomeScreen();
+
+$('dock').innerHTML = DOCK.map(a => `
+  <div class="app-item" data-app="${a.id}">
+    <div class="app-icon" style="background:${a.bg}">${a.icon}</div>
+  </div>
+`).join('');
+
+/* ============================================================
+   5. Lock Screen / Unlock
+   ============================================================ */
+let locked = true;
+let ignoreClickUntil = 0;
+
+function unlock() {
+  if (!locked) return;
+  locked = false;
+  $('lockScreen').classList.add('unlocked');
+  ignoreClickUntil = Date.now() + 450;
+}
+function lockScreen() {
+  goHome();
+  locked = true;
+  $('lockScreen').classList.remove('unlocked');
+  toast('Locked');
+}
+function goHome() {
+  document.querySelectorAll('.app-view.active').forEach(el => el.classList.remove('active'));
+  $('homeScreen').classList.remove('hidden');
+  $('chatRoom').classList.remove('active');
+}
+
+const lockEl = $('lockScreen');
+let lockStartY = null;
+lockEl.addEventListener('pointerdown', e => { lockStartY = e.clientY; });
+lockEl.addEventListener('pointerup', e => {
+  if (lockStartY === null) return;
+  const dy = e.clientY - lockStartY;
+  lockStartY = null;
+  if (dy < -40) unlock();
+});
+lockEl.addEventListener('click', () => unlock());
+
+$('powerBtn').addEventListener('click', () => {
+  locked ? unlock() : lockScreen();
+});
+
+$('screen').addEventListener('click', e => {
+  if (Date.now() < ignoreClickUntil) return;
+  const item = e.target.closest('[data-app]');
+  if (!item) return;
+  openApp(item.dataset.app);
+});
+
+function openApp(id) {
+  const view = $('app-' + id);
+  if (!view) { toast('Not available'); return; }
+  $('homeScreen').classList.add('hidden');
+  view.classList.add('active');
+  
+  if (id === 'calculator') updateCalcDisplay();
+  if (id === 'wechat') renderChatApp();
+  if (id === 'phone') updatePhoneApp();
+  if (id === 'appstore') renderStore();
+}
+
+$('homeBar').addEventListener('click', goHome);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!locked) {
+       if ($('chatRoom').classList.contains('active')) {
+           $('chatRoom').classList.remove('active');
+       } else {
+           goHome();
+       }
+    }
+  }
+});
+
+/* ============================================================
+   6. Calculator
+   ============================================================ */
+const calcState = { display: '0', first: null, op: null, waiting: false };
+
+function updateCalcDisplay() {
+  const s = calcState;
+  let text = s.display;
+  if (text !== 'Error') {
+    const neg = text.startsWith('-');
+    let body = neg ? text.slice(1) : text;
+    const [intPart, decPart] = body.split('.');
+    const withComma = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    text = (neg ? '-' : '') + withComma + (decPart !== undefined ? '.' + decPart : '');
+  }
+  const el = $('calcResult');
+  el.textContent = text;
+  el.style.fontSize = text.length > 9 ? '44px' : text.length > 6 ? '56px' : '72px';
+}
+
+function compute(a, b, op) {
+  let r;
+  switch (op) {
+    case '+': r = a + b; break;
+    case '-': r = a - b; break;
+    case '×': r = a * b; break;
+    case '÷': r = b === 0 ? NaN : a / b; break;
+    default:  r = b;
+  }
+  if (!isFinite(r) || isNaN(r)) return 'Error';
+  return String(Math.round(r * 1e10) / 1e10);
+}
+
+function calcKey(k) {
+  const s = calcState;
+  if (s.display === 'Error' && /[0-9.]/.test(k)) { s.display = '0'; s.first = null; s.op = null; s.waiting = false; }
+
+  if (k >= '0' && k <= '9') {
+    if (s.waiting) { s.display = k; s.waiting = false; }
+    else { s.display = s.display === '0' ? k : s.display + k; }
+  } else if (k === '.') {
+    if (s.waiting) { s.display = '0.'; s.waiting = false; }
+    else if (!s.display.includes('.')) s.display += '.';
+  } else if (k === 'AC') {
+    s.display = '0'; s.first = null; s.op = null; s.waiting = false;
+  } else if (k === '±') {
+    s.display = s.display.startsWith('-') ? s.display.slice(1) : (s.display === '0' ? '0' : '-' + s.display);
+  } else if (k === '%') {
+    s.display = String(parseFloat(s.display) / 100);
+  } else if (['+', '-', '×', '÷'].includes(k)) {
+    if (s.op && !s.waiting) {
+      const r = compute(s.first, parseFloat(s.display), s.op);
+      s.display = r; s.first = parseFloat(r);
+    } else { s.first = parseFloat(s.display); }
+    s.op = k; s.waiting = true;
+  } else if (k === '=') {
+    if (s.op !== null) {
+      const r = compute(s.first, parseFloat(s.display), s.op);
+      s.display = r; s.first = null; s.op = null; s.waiting = true;
+    }
+  }
+  updateCalcDisplay();
+}
+$('calcKeys').addEventListener('click', e => {
+  const btn = e.target.closest('[data-k]');
+  if (btn) calcKey(btn.dataset.k);
+});
+
+/* ============================================================
+   7. Clock / Stopwatch
+   ============================================================ */
+let swRunning = false, swStartTs = 0, swElapsed = 0, swRAF = null;
+function fmtSw(ms) {
+  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), cs = Math.floor((ms % 1000) / 10);
+  return `${pad(m)}:${pad(s)}.${pad(cs)}`;
+}
+function swTick() {
+  const now = swElapsed + (swRunning ? performance.now() - swStartTs : 0);
+  $('swTime').textContent = fmtSw(now);
+  if (swRunning) swRAF = requestAnimationFrame(swTick);
+}
+$('swStart').addEventListener('click', () => {
+  const btn = $('swStart');
+  if (!swRunning) {
+    swRunning = true; swStartTs = performance.now();
+    btn.textContent = 'Stop'; btn.classList.remove('green'); btn.classList.add('red');
+    swTick();
+  } else {
+    swRunning = false; swElapsed += performance.now() - swStartTs;
+    cancelAnimationFrame(swRAF);
+    btn.textContent = 'Start'; btn.classList.remove('red'); btn.classList.add('green');
+  }
+});
+$('swReset').addEventListener('click', () => {
+  if (swRunning) return;
+  swElapsed = 0; $('swTime').textContent = '00:00.00';
+});
+
+/* ============================================================
+   8. Weather Data
+   ============================================================ */
+const hours = [['Now','☀️',24], ['1 PM','☀️',25], ['2 PM','⛅',26], ['3 PM','⛅',26], ['4 PM','🌤️',25], ['5 PM','🌤️',23], ['6 PM','🌙',21], ['7 PM','🌙',20]];
+$('wHourly').innerHTML = hours.map(([t, e, v]) => `<div class="w-hour"><span>${t}</span><span class="h-emo">${e}</span><span class="h-t">${v}°</span></div>`).join('');
+
+const days = [['Today','☀️',18,28], ['Wed','⛅',17,26], ['Thu','🌧️',16,22], ['Fri','🌤️',17,25], ['Sat','☀️',19,29]];
+$('wDaily').innerHTML = days.map(([n, e, lo, hi]) => `
+  <div class="w-day">
+    <span class="d-name">${n}</span><span class="d-emo">${e}</span>
+    <span class="d-lo">${lo}°</span>
+    <span class="d-bar"><i style="width:${((hi - 14) / 18 * 100).toFixed(0)}%"></i></span>
+    <span class="d-hi">${hi}°</span>
+  </div>`).join('');
+
+/* ============================================================
+   9. Notes
+   ============================================================ */
+let notes = ['Welcome to iPhone Simulator 👋', 'Tap the input box below to add a note.'];
+function renderNotes() {
+  const list = $('notesList');
+  if (!notes.length) { list.innerHTML = '<div class="note-empty">No notes</div>'; return; }
+  list.innerHTML = notes.map((n, i) => `<div class="note-item"><span class="n-text">${escapeHTML(n)}</span><button class="n-del" data-i="${i}">✕</button></div>`).join('');
+}
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+$('noteAdd').addEventListener('click', () => {
+  const input = $('noteInput'), v = input.value.trim();
+  if (!v) return;
+  notes.unshift(v); input.value = ''; renderNotes(); toast('Note added');
+});
+$('noteInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('noteAdd').click(); });
+$('notesList').addEventListener('click', e => {
+  const btn = e.target.closest('.n-del');
+  if (!btn) return;
+  notes.splice(Number(btn.dataset.i), 1); renderNotes();
+});
+renderNotes();
+
+/* ============================================================
+   10. Music
+   ============================================================ */
+const MUSIC_LEN = 269;
+let musicPlaying = false, musicPos = 0, musicTimer = null;
+function renderMusic() {
+  $('musicBar').style.width = (musicPos / MUSIC_LEN * 100) + '%';
+  $('musicCur').textContent = `${Math.floor(musicPos / 60)}:${pad(Math.floor(musicPos % 60))}`;
+}
+$('musicPlay').addEventListener('click', () => {
+  musicPlaying = !musicPlaying;
+  $('musicPlay').textContent = musicPlaying ? '⏸' : '▶';
+  $('musicArt').classList.toggle('playing', musicPlaying);
+  if (musicPlaying) {
+    musicTimer = setInterval(() => {
+      musicPos += 0.12;
+      if (musicPos >= MUSIC_LEN) musicPos = 0;
+      renderMusic();
+    }, 120);
+  } else clearInterval(musicTimer);
+});
+$('musicNext').addEventListener('click', () => { musicPos = 0; renderMusic(); toast('Next Track'); });
+$('musicPrev').addEventListener('click', () => { musicPos = 0; renderMusic(); toast('Previous Track'); });
+renderMusic();
+
+/* ============================================================
+   11. Photos
+   ============================================================ */
+const GRADS = ['linear-gradient(135deg,#667eea,#764ba2)', 'linear-gradient(135deg,#f093fb,#f5576c)', 'linear-gradient(135deg,#4facfe,#00f2fe)', 'linear-gradient(135deg,#43e97b,#38f9d7)', 'linear-gradient(135deg,#fa709a,#fee140)', 'linear-gradient(135deg,#30cfd0,#330867)', 'linear-gradient(135deg,#a8edea,#fed6e3)', 'linear-gradient(135deg,#ff9a9e,#fecfef)', 'linear-gradient(135deg,#ffecd2,#fcb69f)'];
+$('photoGrid').innerHTML = GRADS.map(g => `<div style="background:${g}"></div>`).join('');
+
+/* ============================================================
+   12. Settings
+   ============================================================ */
+let wpIndex = 0;
+$('rowWallpaper').addEventListener('click', () => {
+  wpIndex = (wpIndex + 1) % WALLPAPERS.length;
+  $('wallpaper').style.background = WALLPAPERS[wpIndex];
+  toast('Wallpaper changed');
+});
+let showPct = false;
+$('rowBattery').addEventListener('click', () => {
+  showPct = !showPct;
+  document.body.classList.toggle('show-pct', showPct);
+  $('swBattery').classList.toggle('on', showPct);
+});
+$('rowLock').addEventListener('click', lockScreen);
+
+/* ============================================================
+   13. Phone App (Random 8-Digit Number)
+   ============================================================ */
+function updatePhoneApp() {
+  $('myPhoneNumber').textContent = myRandomPhone.replace(/(\d{4})(\d{4})/, '$1 $2');
+}
+
+$('regenPhoneBtn').addEventListener('click', () => {
+  myRandomPhone = Math.floor(10000000 + Math.random() * 90000000).toString();
+  updatePhoneApp();
+  toast('New number generated!');
+});
+
+/* ============================================================
+   14. WeChat App Logic
+   ============================================================ */
+let userProfile = JSON.parse(localStorage.getItem('wechat_user')) || null;
+let chats = JSON.parse(localStorage.getItem('wechat_data')) || [];
+let currentChatId = null;
+
+function saveChatData() {
+  localStorage.setItem('wechat_data', JSON.stringify(chats));
+}
+function saveUser() {
+  localStorage.setItem('wechat_user', JSON.stringify(userProfile));
+}
+
+function renderChatApp() {
+  if (!userProfile) {
+    $('regState').style.display = 'block';
+    $('chatListState').style.display = 'none';
+  } else {
+    $('regState').style.display = 'none';
+    $('chatListState').style.display = 'flex';
+    renderChatList();
+  }
+}
+
+function renderChatList() {
+  const container = $('chatItems');
+  if (chats.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #8e8e93; font-size: 14px; margin-top: 20px;">No chats yet. Add a friend!</div>';
+    return;
+  }
+  container.innerHTML = chats.map(c => {
+    const lastMsg = c.messages.length > 0 ? c.messages[c.messages.length - 1].text : "Start a conversation...";
+    return `
+      <div class="chat-item" onclick="openChat('${c.id}')">
+        <div class="chat-avatar">👤</div>
+        <div class="chat-info">
+          <div class="chat-name">${c.name}</div>
+          <div class="chat-preview">${escapeHTML(lastMsg)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Register / Login
+$('regBtn').addEventListener('click', () => {
+  const phone = $('regPhoneInput').value.trim();
+  
+  if (!/^\d{8}$/.test(phone)) { 
+    toast('Must be exactly 8 digits'); 
+    return; 
+  }
+
+  userProfile = { phone: phone };
+  saveUser();
+  renderChatApp();
+  toast('Logged in to WeChat');
+});
+
+// Add Friend
+$('addFriendBtn').addEventListener('click', () => {
+  const phone = $('friendPhoneInput').value.trim();
+  
+  if (!/^\d{8}$/.test(phone)) { 
+    toast('Must be exactly 8 digits'); 
+    return; 
+  }
+  
+  if (phone === userProfile.phone) { 
+    toast('Cannot add yourself'); 
+    return; 
+  }
+  
+  if (chats.find(c => c.phone === phone)) { 
+    toast('Friend already added'); 
+    return; 
+  }
+  
+  const formattedName = phone.replace(/(\d{4})(\d{4})/, '$1 $2');
+  
+  const newChat = {
+    id: Date.now().toString(),
+    phone: phone,
+    name: formattedName,
+    messages: [{ sender: 'friend', type: 'text', text: 'Hey! I just added you.' }]
+  };
+  chats.push(newChat);
+  saveChatData();
+  $('friendPhoneInput').value = '';
+  renderChatList();
+  toast('Friend added');
+});
+
+// Log out
+$('logoutBtn').addEventListener('click', () => {
+  userProfile = null;
+  saveUser();
+  renderChatApp();
+  toast('Logged out');
+});
+
+window.openChat = function(id) {
+  currentChatId = id;
+  const chat = chats.find(c => c.id === id);
+  if (!chat) return;
+  
+  $('crName').textContent = chat.name;
+  renderMessages();
+  $('chatRoom').classList.add('active');
+};
+
+function renderMessages() {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  const container = $('crMessages');
+  container.innerHTML = chat.messages.map(m => {
+    if (m.type === 'image') {
+      return `<div class="msg-bubble image-bubble ${m.sender}"><img src="${m.content}" alt="uploaded image"></div>`;
+    } else if (m.type === 'file') {
+      return `<div class="msg-bubble file-bubble ${m.sender}">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                  <div class="file-name">${escapeHTML(m.content)}</div>
+                  <div class="file-size">${m.size}</div>
+                </div>
+              </div>`;
+    } else {
+      return `<div class="msg-bubble ${m.sender}">${escapeHTML(m.text)}</div>`;
+    }
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+// Send Text Message
+function sendMessage() {
+  const input = $('crInput');
+  const text = input.value.trim();
+  if (!text) return;
+  
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  
+  chat.messages.push({ sender: 'me', type: 'text', text: text });
+  saveChatData();
+  input.value = '';
+  renderMessages();
+  
+  simulateReply();
+}
+
+// Simulated Friend Reply
+function simulateReply() {
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  
+  setTimeout(() => {
+    const replies = ["Got it!", "Haha, that's funny.", "Sounds good.", "I'm busy right now, talk later.", "👍", "Thanks for sharing!"];
+    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    chat.messages.push({ sender: 'friend', type: 'text', text: randomReply });
+    saveChatData();
+    if (currentChatId === chat.id) renderMessages();
+  }, 1500);
+}
+
+$('crSendBtn').addEventListener('click', sendMessage);
+$('crInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+$('backToChatList').addEventListener('click', () => {
+  $('chatRoom').classList.remove('active');
+  currentChatId = null;
+  renderChatList();
+});
+
+// Image Upload Logic
+$('btnImg').addEventListener('click', () => $('fileInputImg').click());
+$('fileInputImg').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat) return;
+    chat.messages.push({ sender: 'me', type: 'image', content: ev.target.result });
+    saveChatData();
+    renderMessages();
+    simulateReply();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = ''; // Reset
+});
+
+// File Upload Logic
+$('btnFile').addEventListener('click', () => $('fileInputDoc').click());
+$('fileInputDoc').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  const chat = chats.find(c => c.id === currentChatId);
+  if (!chat) return;
+  chat.messages.push({ sender: 'me', type: 'file', content: file.name, size: sizeMB + ' MB' });
+  saveChatData();
+  renderMessages();
+  simulateReply();
+  e.target.value = '';
+});
+
+/* ============================================================
+   15. App Store Logic
+   ============================================================ */
+function renderStore() {
+  const container = $('storeList');
+  container.innerHTML = STORE_APPS.map(app => {
+    const isDownloaded = downloadedApps.includes(app.id);
+    return `
+      <div class="store-item">
+        <div class="store-icon" style="background:${app.bg}">${app.icon}</div>
+        <div class="store-info">
+          <div class="store-name">${app.name}</div>
+          <div class="store-desc">${app.id === 'youtube' ? 'Watch Videos' : app.id === 'roblox' ? 'Play Games' : 'Social Network'}</div>
+        </div>
+        <button class="store-btn ${isDownloaded ? 'downloaded' : ''}" onclick="downloadApp('${app.id}')">
+          ${isDownloaded ? 'OPEN' : 'GET'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+window.downloadApp = function(id) {
+  if (downloadedApps.includes(id)) {
+    openApp(id);
+    return;
+  }
+  
+  toast('Downloading...');
+  setTimeout(() => {
+    downloadedApps.push(id);
+    localStorage.setItem('downloaded_apps', JSON.stringify(downloadedApps));
+    renderHomeScreen();
+    renderStore();
+    toast('App Installed!');
+  }, 1000);
+};
+
+/* ============================================================
+   16. YouTube Logic
+   ============================================================ */
+let ytPlaying = false, ytProgress = 0, ytTimer = null;
+const YT_LEN = 100;
+
+$('ytPlayBtn').addEventListener('click', () => {
+  ytPlaying = !ytPlaying;
+  $('ytPlayBtn').textContent = ytPlaying ? '⏸' : '▶';
+  if (ytPlaying) {
+    $('ytThumb').style.filter = 'brightness(0.5)';
+    ytTimer = setInterval(() => {
+      ytProgress += 0.5;
+      if (ytProgress >= YT_LEN) {
+        ytProgress = 0;
+        clearInterval(ytTimer);
+        ytPlaying = false;
+        $('ytPlayBtn').textContent = '▶';
+        $('ytThumb').style.filter = 'none';
+      }
+      $('ytProgress').style.width = ytProgress + '%';
+    }, 200);
+  } else {
+    clearInterval(ytTimer);
+    $('ytThumb').style.filter = 'none';
+  }
+});
+
+/* ============================================================
+   17. Roblox Logic (Clicker Game)
+   ============================================================ */
+let robloxScore = 0;
+
+$('gameBlock').addEventListener('click', () => {
+  robloxScore++;
+  $('gameScore').textContent = `Score: ${robloxScore}`;
+  
+  const block = $('gameBlock');
+  block.style.transform = 'scale(0.9)';
+  setTimeout(() => block.style.transform = 'scale(1)', 100);
+});
+
+/* ============================================================
+   18. Startup
+   ============================================================ */
+(function () {
+  const d = new Date();
+  const pct = 76 + (d.getMinutes() % 12);
+  $('batteryPct').textContent = pct + '%';
+  document.querySelector('.battery-level').style.width = pct + '%';
+})();
+</script>
+</body>
+</html>
